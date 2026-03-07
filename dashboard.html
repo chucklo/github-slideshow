@@ -1,0 +1,1432 @@
+---
+layout: null
+permalink: /dashboard
+---
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Clinic Room Utilization Dashboard</title>
+  <style>
+    /* ── Reset & Base ─────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:          #0f1117;
+      --surface:     #1a1d27;
+      --surface2:    #22263a;
+      --border:      #2e3350;
+      --text:        #e2e8f0;
+      --text-muted:  #8892b0;
+      --accent:      #4f8ef7;
+      --green:       #22c55e;
+      --yellow:      #eab308;
+      --red:         #ef4444;
+      --blue:        #3b82f6;
+      --purple:      #a855f7;
+      --gray:        #475569;
+      --cyan:        #06b6d4;
+      --radius:      8px;
+      --shadow:      0 4px 24px rgba(0,0,0,.4);
+    }
+    html { font-size: 14px; }
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Header ───────────────────────────────────────────────────── */
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 60px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      gap: 16px;
+    }
+    .header-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      white-space: nowrap;
+    }
+    .header-brand svg { flex-shrink: 0; }
+    .header-brand h1 {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: var(--text);
+      line-height: 1.2;
+    }
+    .header-brand span {
+      font-size: .75rem;
+      color: var(--text-muted);
+      font-weight: 400;
+    }
+    .live-badge {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(34,197,94,.12);
+      border: 1px solid rgba(34,197,94,.3);
+      border-radius: 99px;
+      padding: 3px 10px;
+      font-size: .72rem;
+      color: var(--green);
+      font-weight: 600;
+      letter-spacing: .04em;
+    }
+    .live-dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: var(--green);
+      animation: pulse 1.8s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%,100% { opacity: 1; transform: scale(1); }
+      50%      { opacity: .4; transform: scale(.7); }
+    }
+    .header-time { font-size: .78rem; color: var(--text-muted); white-space: nowrap; }
+
+    /* ── Layout ───────────────────────────────────────────────────── */
+    .app { display: flex; flex: 1; overflow: hidden; }
+    .sidebar {
+      width: 260px;
+      min-width: 220px;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      padding: 16px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+    .main {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    /* ── Sidebar sections ─────────────────────────────────────────── */
+    .sidebar-section h3 {
+      font-size: .68rem;
+      font-weight: 700;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+    .filter-group { display: flex; flex-direction: column; gap: 6px; }
+    .filter-group label { font-size: .8rem; color: var(--text-muted); }
+    select, input[type="text"] {
+      width: 100%;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: var(--radius);
+      padding: 7px 10px;
+      font-size: .82rem;
+      outline: none;
+      appearance: none;
+      -webkit-appearance: none;
+    }
+    select:focus, input[type="text"]:focus { border-color: var(--accent); }
+
+    /* Legend */
+    .legend { display: flex; flex-direction: column; gap: 6px; }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: .8rem;
+      color: var(--text);
+    }
+    .legend-dot {
+      width: 11px; height: 11px;
+      border-radius: 3px;
+      flex-shrink: 0;
+    }
+
+    /* Stat chips */
+    .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .stat-chip {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .stat-chip .val {
+      font-size: 1.35rem;
+      font-weight: 700;
+      line-height: 1;
+    }
+    .stat-chip .lbl {
+      font-size: .68rem;
+      color: var(--text-muted);
+      line-height: 1.2;
+    }
+    .val.green { color: var(--green); }
+    .val.red   { color: var(--red); }
+    .val.yellow { color: var(--yellow); }
+    .val.blue  { color: var(--blue); }
+
+    /* View toggle */
+    .view-toggle {
+      display: flex;
+      gap: 4px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 3px;
+    }
+    .view-btn {
+      flex: 1;
+      padding: 5px 0;
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      border-radius: 5px;
+      font-size: .78rem;
+      font-weight: 600;
+      transition: all .15s;
+    }
+    .view-btn.active {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    /* Reset button */
+    .btn-reset {
+      width: 100%;
+      padding: 7px;
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      border-radius: var(--radius);
+      font-size: .8rem;
+      cursor: pointer;
+      transition: all .15s;
+    }
+    .btn-reset:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── Summary Bar ──────────────────────────────────────────────── */
+    .summary-bar {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 12px;
+    }
+    .summary-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .summary-icon {
+      width: 38px; height: 38px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      font-size: 1.1rem;
+    }
+    .summary-card .info .big {
+      font-size: 1.55rem;
+      font-weight: 800;
+      line-height: 1;
+    }
+    .summary-card .info .sub {
+      font-size: .72rem;
+      color: var(--text-muted);
+    }
+    .icon-total  { background: rgba(79,142,247,.15); color: var(--blue); }
+    .icon-occ    { background: rgba(239,68,68,.15);  color: var(--red); }
+    .icon-avail  { background: rgba(34,197,94,.15);  color: var(--green); }
+    .icon-clean  { background: rgba(234,179,8,.15);  color: var(--yellow); }
+    .icon-util   { background: rgba(168,85,247,.15); color: var(--purple); }
+    .icon-clinics { background: rgba(6,182,212,.15); color: var(--cyan); }
+
+    /* ── Utilization Bar ──────────────────────────────────────────── */
+    .util-bar-wrap {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px 16px;
+    }
+    .util-bar-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+    .util-bar-header h2 {
+      font-size: .88rem;
+      font-weight: 700;
+      color: var(--text);
+    }
+    .util-bar-header span { font-size: .75rem; color: var(--text-muted); }
+    .util-bar-track {
+      height: 20px;
+      background: var(--surface2);
+      border-radius: 99px;
+      overflow: hidden;
+      display: flex;
+    }
+    .util-segment {
+      height: 100%;
+      transition: width .5s ease;
+    }
+    .util-legend {
+      display: flex;
+      gap: 16px;
+      margin-top: 8px;
+      flex-wrap: wrap;
+    }
+    .util-legend-item {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: .72rem;
+      color: var(--text-muted);
+    }
+    .util-legend-dot {
+      width: 10px; height: 10px;
+      border-radius: 2px;
+    }
+
+    /* ── Chart Section ────────────────────────────────────────────── */
+    .charts-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+    .chart-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px 16px;
+    }
+    .chart-card h2 {
+      font-size: .88rem;
+      font-weight: 700;
+      margin-bottom: 12px;
+    }
+    .bar-chart { display: flex; flex-direction: column; gap: 7px; }
+    .bar-row {
+      display: grid;
+      grid-template-columns: 130px 1fr 36px;
+      align-items: center;
+      gap: 8px;
+    }
+    .bar-label {
+      font-size: .72rem;
+      color: var(--text-muted);
+      text-align: right;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .bar-track {
+      height: 14px;
+      background: var(--surface2);
+      border-radius: 99px;
+      overflow: hidden;
+    }
+    .bar-fill {
+      height: 100%;
+      border-radius: 99px;
+      background: var(--accent);
+      transition: width .5s ease;
+    }
+    .bar-pct {
+      font-size: .7rem;
+      color: var(--text-muted);
+      text-align: right;
+    }
+
+    /* Heatmap */
+    .heatmap { display: flex; flex-direction: column; gap: 5px; }
+    .heatmap-row { display: flex; align-items: center; gap: 4px; }
+    .heatmap-label {
+      width: 60px;
+      font-size: .68rem;
+      color: var(--text-muted);
+      text-align: right;
+      flex-shrink: 0;
+    }
+    .heatmap-cell {
+      flex: 1;
+      height: 18px;
+      border-radius: 3px;
+      cursor: default;
+      transition: transform .1s;
+      position: relative;
+    }
+    .heatmap-cell:hover { transform: scale(1.15); z-index: 10; }
+    .heatmap-hours {
+      display: flex;
+      gap: 4px;
+      padding-left: 64px;
+      margin-bottom: 2px;
+    }
+    .heatmap-hour {
+      flex: 1;
+      font-size: .6rem;
+      color: var(--text-muted);
+      text-align: center;
+    }
+
+    /* ── Room Grid ────────────────────────────────────────────────── */
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .section-header h2 {
+      font-size: .95rem;
+      font-weight: 700;
+    }
+    .room-count-badge {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 99px;
+      padding: 2px 10px;
+      font-size: .72rem;
+      color: var(--text-muted);
+    }
+
+    .wing-section { display: flex; flex-direction: column; gap: 10px; }
+    .wing-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .wing-title {
+      font-size: .8rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: .08em;
+    }
+    .wing-line {
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+    .wing-stats {
+      font-size: .7rem;
+      color: var(--text-muted);
+    }
+
+    /* Grid view */
+    .rooms-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      gap: 10px;
+    }
+
+    /* List view */
+    .rooms-list { display: flex; flex-direction: column; gap: 6px; }
+    .room-list-item {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 10px 14px;
+      display: grid;
+      grid-template-columns: 60px 1fr 1fr 1fr 110px;
+      align-items: center;
+      gap: 12px;
+      cursor: pointer;
+      transition: border-color .15s;
+    }
+    .room-list-item:hover { border-color: var(--accent); }
+    .room-list-header {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 6px 14px;
+      display: grid;
+      grid-template-columns: 60px 1fr 1fr 1fr 110px;
+      gap: 12px;
+      font-size: .68rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .07em;
+      color: var(--text-muted);
+    }
+
+    /* Room card */
+    .room-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px;
+      cursor: pointer;
+      transition: border-color .15s, transform .1s, box-shadow .15s;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .room-card:hover {
+      border-color: var(--accent);
+      transform: translateY(-1px);
+      box-shadow: var(--shadow);
+    }
+    .room-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+    }
+    .room-card.occupied   { border-color: rgba(239,68,68,.35); }
+    .room-card.occupied::before   { background: var(--red); }
+    .room-card.available  { border-color: rgba(34,197,94,.35); }
+    .room-card.available::before  { background: var(--green); }
+    .room-card.cleaning   { border-color: rgba(234,179,8,.35); }
+    .room-card.cleaning::before   { background: var(--yellow); }
+    .room-card.reserved   { border-color: rgba(59,130,246,.35); }
+    .room-card.reserved::before   { background: var(--blue); }
+    .room-card.offline    { border-color: rgba(71,85,105,.35); }
+    .room-card.offline::before    { background: var(--gray); }
+
+    .room-number {
+      font-size: 1rem;
+      font-weight: 800;
+      color: var(--text);
+    }
+    .room-status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      border-radius: 99px;
+      padding: 2px 8px;
+      font-size: .65rem;
+      font-weight: 600;
+      letter-spacing: .03em;
+      width: fit-content;
+    }
+    .badge-dot { width: 5px; height: 5px; border-radius: 50%; }
+    .status-occupied  { background: rgba(239,68,68,.18);  color: #fca5a5; }
+    .status-available { background: rgba(34,197,94,.18);  color: #86efac; }
+    .status-cleaning  { background: rgba(234,179,8,.18);  color: #fde047; }
+    .status-reserved  { background: rgba(59,130,246,.18); color: #93c5fd; }
+    .status-offline   { background: rgba(71,85,105,.18);  color: #94a3b8; }
+    .dot-occupied  { background: #ef4444; }
+    .dot-available { background: #22c55e; }
+    .dot-cleaning  { background: #eab308; }
+    .dot-reserved  { background: #3b82f6; }
+    .dot-offline   { background: #475569; }
+
+    .room-meta {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .room-clinic-name {
+      font-size: .72rem;
+      font-weight: 600;
+      color: var(--text);
+      line-height: 1.3;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .room-service {
+      font-size: .65rem;
+      color: var(--text-muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .room-provider {
+      font-size: .65rem;
+      color: var(--accent);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .room-util-bar {
+      height: 4px;
+      background: var(--surface2);
+      border-radius: 99px;
+      overflow: hidden;
+      margin-top: 2px;
+    }
+    .room-util-fill {
+      height: 100%;
+      border-radius: 99px;
+    }
+
+    /* ── Modal ────────────────────────────────────────────────────── */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.65);
+      z-index: 200;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      width: 100%;
+      max-width: 460px;
+      padding: 24px;
+      box-shadow: var(--shadow);
+      position: relative;
+    }
+    .modal-close {
+      position: absolute;
+      top: 14px; right: 14px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      width: 28px; height: 28px;
+      border-radius: 6px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1rem;
+      line-height: 1;
+    }
+    .modal-close:hover { color: var(--text); border-color: var(--accent); }
+    .modal-room-num {
+      font-size: 2.2rem;
+      font-weight: 900;
+      line-height: 1;
+      margin-bottom: 4px;
+    }
+    .modal-wing { font-size: .8rem; color: var(--text-muted); margin-bottom: 14px; }
+    .modal-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+    .modal-field { display: flex; flex-direction: column; gap: 2px; }
+    .modal-field-label {
+      font-size: .65rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      color: var(--text-muted);
+    }
+    .modal-field-value {
+      font-size: .82rem;
+      color: var(--text);
+      font-weight: 600;
+    }
+    .modal-util-section { margin-top: 10px; }
+    .modal-util-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: .75rem;
+      margin-bottom: 6px;
+    }
+    .modal-util-track {
+      height: 8px;
+      background: var(--surface2);
+      border-radius: 99px;
+      overflow: hidden;
+    }
+    .modal-util-fill {
+      height: 100%;
+      border-radius: 99px;
+    }
+    .modal-timeline { margin-top: 16px; }
+    .modal-timeline h4 {
+      font-size: .72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+    .timeline-slots {
+      display: flex;
+      gap: 3px;
+    }
+    .timeline-slot {
+      flex: 1;
+      height: 24px;
+      border-radius: 3px;
+      position: relative;
+      cursor: default;
+    }
+    .timeline-slot-label {
+      font-size: .58rem;
+      color: var(--text-muted);
+      text-align: center;
+      margin-top: 3px;
+    }
+
+    /* ── No results ───────────────────────────────────────────────── */
+    .no-results {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--text-muted);
+    }
+    .no-results svg { margin-bottom: 12px; opacity: .3; }
+    .no-results p { font-size: .85rem; }
+
+    /* ── Scrollbar ────────────────────────────────────────────────── */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+    /* ── Responsive ───────────────────────────────────────────────── */
+    @media (max-width: 900px) {
+      .sidebar { width: 200px; }
+      .charts-row { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 680px) {
+      .app { flex-direction: column; }
+      .sidebar { width: 100%; border-right: none; border-bottom: 1px solid var(--border); max-height: 220px; }
+      .charts-row { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── HEADER ──────────────────────────────────────────────────────── -->
+<header>
+  <div class="header-brand">
+    <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect width="32" height="32" rx="8" fill="#4f8ef7" fill-opacity=".15"/>
+      <path d="M7 16h2v8H7v-8zm4-5h2v13h-2V11zm4-4h2v17h-2V7zm4 7h2v10h-2V14zm4-3h2v13h-2V11z" fill="#4f8ef7"/>
+      <path d="M6 24h20" stroke="#4f8ef7" stroke-width="1.5" stroke-linecap="round"/>
+    </svg>
+    <div>
+      <h1>Ambulatory Clinic Room Dashboard</h1>
+      <span>Real-time occupancy &amp; utilization</span>
+    </div>
+  </div>
+  <div style="display:flex;align-items:center;gap:12px;">
+    <div class="live-badge"><div class="live-dot"></div>LIVE</div>
+    <div class="header-time" id="clock"></div>
+  </div>
+</header>
+
+<!-- ── APP ─────────────────────────────────────────────────────────── -->
+<div class="app">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+
+    <div class="sidebar-section">
+      <h3>Search</h3>
+      <div class="filter-group">
+        <input type="text" id="search" placeholder="Room #, clinic, provider..." />
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <h3>Filters</h3>
+      <div class="filter-group">
+        <label>Status</label>
+        <select id="filterStatus">
+          <option value="">All Statuses</option>
+          <option value="occupied">Occupied</option>
+          <option value="available">Available</option>
+          <option value="cleaning">Cleaning</option>
+          <option value="reserved">Reserved</option>
+          <option value="offline">Offline</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label>Clinical Service</label>
+        <select id="filterService">
+          <option value="">All Services</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label>Clinic Name</label>
+        <select id="filterClinic">
+          <option value="">All Clinics</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label>Provider</label>
+        <select id="filterProvider">
+          <option value="">All Providers</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label>Wing</label>
+        <select id="filterWing">
+          <option value="">All Wings</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <h3>View</h3>
+      <div class="view-toggle">
+        <button class="view-btn active" id="viewGrid" onclick="setView('grid')">Grid</button>
+        <button class="view-btn" id="viewList" onclick="setView('list')">List</button>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <h3>Stats</h3>
+      <div class="stats-grid" id="sidebarStats"></div>
+    </div>
+
+    <div class="sidebar-section">
+      <h3>Legend</h3>
+      <div class="legend">
+        <div class="legend-item"><div class="legend-dot" style="background:var(--red)"></div>Occupied</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--green)"></div>Available</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--yellow)"></div>Cleaning</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--blue)"></div>Reserved</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--gray)"></div>Offline</div>
+      </div>
+    </div>
+
+    <button class="btn-reset" onclick="resetFilters()">Reset All Filters</button>
+
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main">
+
+    <!-- Summary cards -->
+    <div class="summary-bar" id="summaryBar"></div>
+
+    <!-- Utilization strip -->
+    <div class="util-bar-wrap">
+      <div class="util-bar-header">
+        <h2>Overall Room Status Distribution</h2>
+        <span id="util-pct"></span>
+      </div>
+      <div class="util-bar-track" id="utilTrack"></div>
+      <div class="util-legend">
+        <div class="util-legend-item"><div class="util-legend-dot" style="background:var(--red)"></div>Occupied</div>
+        <div class="util-legend-item"><div class="util-legend-dot" style="background:var(--green)"></div>Available</div>
+        <div class="util-legend-item"><div class="util-legend-dot" style="background:var(--yellow)"></div>Cleaning</div>
+        <div class="util-legend-item"><div class="util-legend-dot" style="background:var(--blue)"></div>Reserved</div>
+        <div class="util-legend-item"><div class="util-legend-dot" style="background:var(--gray)"></div>Offline</div>
+      </div>
+    </div>
+
+    <!-- Charts -->
+    <div class="charts-row">
+      <div class="chart-card">
+        <h2>Utilization by Clinical Service</h2>
+        <div class="bar-chart" id="serviceChart"></div>
+      </div>
+      <div class="chart-card">
+        <h2>Hourly Utilization Heatmap</h2>
+        <div class="heatmap-hours" id="heatmapHours"></div>
+        <div class="heatmap" id="heatmap"></div>
+      </div>
+    </div>
+
+    <!-- Room grid/list -->
+    <div class="section-header">
+      <h2>Exam Rooms <span class="room-count-badge" id="roomCountBadge"></span></h2>
+    </div>
+    <div id="roomsContainer"></div>
+
+  </main>
+</div>
+
+<!-- ── MODAL ────────────────────────────────────────────────────────── -->
+<div class="modal-overlay" id="modalOverlay" onclick="closeModal(event)">
+  <div class="modal" id="modal">
+    <button class="modal-close" onclick="closeModalBtn()">&times;</button>
+    <div id="modalContent"></div>
+  </div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════════
+   DATA
+═══════════════════════════════════════════════════════════════════ */
+
+const SERVICES = [
+  'Cardiology','Oncology / Hematology','Orthopedics','Neurology',
+  'Gastroenterology','Pulmonology','Rheumatology','Endocrinology',
+  'Nephrology','Urology','Dermatology','Ophthalmology','ENT',
+  'OB/GYN','Pediatrics','Internal Medicine'
+];
+
+// 120+ clinic names spread across services
+const CLINICS_BY_SERVICE = {
+  'Cardiology': [
+    'Heart Failure Clinic','Arrhythmia & EP Clinic','Preventive Cardiology',
+    'Cardiac Imaging Clinic','Structural Heart Clinic','Heart Transplant Clinic',
+    'Lipid Management Clinic','Cardiac Rehab Clinic','Hypertension Clinic'
+  ],
+  'Oncology / Hematology': [
+    'Breast Oncology Clinic','GI Oncology Clinic','Lung Cancer Clinic',
+    'Hematologic Malignancy Clinic','GYN Oncology Clinic','Head & Neck Oncology',
+    'Neuro-Oncology Clinic','Sarcoma Clinic','Melanoma & Skin Oncology',
+    'Bone Marrow Transplant Clinic','Palliative Oncology Clinic'
+  ],
+  'Orthopedics': [
+    'Hip & Knee Replacement Clinic','Spine & Back Clinic','Sports Medicine Clinic',
+    'Shoulder & Elbow Clinic','Hand & Wrist Clinic','Foot & Ankle Clinic',
+    'Pediatric Orthopedics Clinic','Fracture & Trauma Clinic'
+  ],
+  'Neurology': [
+    'Memory & Cognitive Clinic','Epilepsy Clinic','Movement Disorders Clinic',
+    'Multiple Sclerosis Clinic','Headache & Migraine Clinic','Neuromuscular Clinic',
+    'Stroke Prevention Clinic','Sleep Neurology Clinic'
+  ],
+  'Gastroenterology': [
+    'IBD & Crohn\'s Clinic','Hepatology & Liver Clinic','Motility Clinic',
+    'Pancreatic Disease Clinic','Colorectal Clinic','Swallowing Disorders Clinic',
+    'GI Nutrition Clinic','Celiac & Food Sensitivity Clinic'
+  ],
+  'Pulmonology': [
+    'Asthma & Allergy Clinic','COPD Management Clinic','Interstitial Lung Disease Clinic',
+    'Sleep & Pulmonary Clinic','Pulmonary Hypertension Clinic','Cystic Fibrosis Clinic',
+    'Lung Transplant Clinic'
+  ],
+  'Rheumatology': [
+    'Lupus & Autoimmune Clinic','Rheumatoid Arthritis Clinic','Gout & Crystal Arthropathy',
+    'Vasculitis Clinic','Fibromyalgia Clinic','Inflammatory Myopathy Clinic'
+  ],
+  'Endocrinology': [
+    'Diabetes & Metabolism Clinic','Thyroid & Parathyroid Clinic','Adrenal Disorders Clinic',
+    'Pituitary Clinic','Obesity Medicine Clinic','Reproductive Endocrinology Clinic',
+    'Osteoporosis Clinic'
+  ],
+  'Nephrology': [
+    'CKD & Dialysis Clinic','Hypertension Nephrology Clinic','Transplant Nephrology Clinic',
+    'Glomerular Disease Clinic','Electrolyte Disorders Clinic'
+  ],
+  'Urology': [
+    'Urologic Oncology Clinic','Benign Prostatic Clinic','Female Urology Clinic',
+    'Stone Disease Clinic','Male Infertility Clinic','Pediatric Urology Clinic'
+  ],
+  'Dermatology': [
+    'Medical Dermatology Clinic','Skin Cancer & Mohs Clinic','Psoriasis & Biologics Clinic',
+    'Patch Testing Clinic','Cosmetic Dermatology Clinic','Pediatric Dermatology Clinic'
+  ],
+  'Ophthalmology': [
+    'Retina & Vitreous Clinic','Glaucoma Clinic','Cornea & External Disease Clinic',
+    'Oculoplastics Clinic','Neuro-Ophthalmology Clinic','Pediatric Ophthalmology Clinic'
+  ],
+  'ENT': [
+    'Otology & Neurotology Clinic','Head & Neck Surgery Clinic','Rhinology Clinic',
+    'Voice & Laryngology Clinic','Pediatric ENT Clinic','Thyroid ENT Clinic'
+  ],
+  'OB/GYN': [
+    'General OB Clinic','High-Risk OB / MFM Clinic','GYN Oncology Follow-up',
+    'Urogynecology Clinic','Reproductive Endocrinology & Infertility','Menopause Clinic',
+    'Adolescent GYN Clinic'
+  ],
+  'Pediatrics': [
+    'General Pediatrics Clinic','Pediatric Cardiology Clinic','Pediatric Neurology Clinic',
+    'Pediatric GI Clinic','Pediatric Endocrinology Clinic','Pediatric Pulmonology Clinic',
+    'Developmental Pediatrics Clinic','Pediatric Hematology Clinic'
+  ],
+  'Internal Medicine': [
+    'General Internal Medicine Clinic','Complex Care Clinic','Pre-Operative Assessment Clinic',
+    'Travel Medicine Clinic','Geriatrics Clinic','Hospital Follow-up Clinic',
+    'International Medicine Clinic'
+  ]
+};
+
+const PROVIDERS_BY_SERVICE = {
+  'Cardiology': ['Dr. A. Rahman','Dr. B. Chen','Dr. C. Patel','Dr. D. Kim','Dr. E. Torres','Dr. F. Okafor','Dr. G. Martinez'],
+  'Oncology / Hematology': ['Dr. H. Singh','Dr. I. Nguyen','Dr. J. Wu','Dr. K. Johnson','Dr. L. Andersen','Dr. M. Park','Dr. N. Reyes'],
+  'Orthopedics': ['Dr. O. Williams','Dr. P. Davis','Dr. Q. Ahmed','Dr. R. Lee','Dr. S. Brown','Dr. T. Scott'],
+  'Neurology': ['Dr. U. Miller','Dr. V. Wilson','Dr. W. Taylor','Dr. X. Clark','Dr. Y. White','Dr. Z. Hall'],
+  'Gastroenterology': ['Dr. A. Allen','Dr. B. Young','Dr. C. Hernandez','Dr. D. King','Dr. E. Wright'],
+  'Pulmonology': ['Dr. F. Lopez','Dr. G. Hill','Dr. H. Green','Dr. I. Adams','Dr. J. Baker'],
+  'Rheumatology': ['Dr. K. Gonzalez','Dr. L. Nelson','Dr. M. Carter','Dr. N. Mitchell'],
+  'Endocrinology': ['Dr. O. Perez','Dr. P. Roberts','Dr. Q. Turner','Dr. R. Phillips','Dr. S. Campbell'],
+  'Nephrology': ['Dr. T. Parker','Dr. U. Evans','Dr. V. Edwards','Dr. W. Collins'],
+  'Urology': ['Dr. X. Stewart','Dr. Y. Sanchez','Dr. Z. Morris','Dr. A. Rogers','Dr. B. Reed'],
+  'Dermatology': ['Dr. C. Cook','Dr. D. Morgan','Dr. E. Bell','Dr. F. Murphy','Dr. G. Bailey'],
+  'Ophthalmology': ['Dr. H. Rivera','Dr. I. Cooper','Dr. J. Richardson','Dr. K. Cox'],
+  'ENT': ['Dr. L. Howard','Dr. M. Ward','Dr. N. Torres','Dr. O. Peterson'],
+  'OB/GYN': ['Dr. P. Gray','Dr. Q. Ramirez','Dr. R. James','Dr. S. Watson','Dr. T. Brooks'],
+  'Pediatrics': ['Dr. U. Kelly','Dr. V. Sanders','Dr. W. Price','Dr. X. Bennett','Dr. Y. Wood'],
+  'Internal Medicine': ['Dr. Z. Barnes','Dr. A. Ross','Dr. B. Henderson','Dr. C. Coleman','Dr. D. Jenkins','Dr. E. Perry']
+};
+
+const WINGS = [
+  { id:'A', name:'Wing A — Floors 1-2',  prefix:'A', range:[100,125] },
+  { id:'B', name:'Wing B — Floors 2-3',  prefix:'B', range:[200,225] },
+  { id:'C', name:'Wing C — Floors 3-4',  prefix:'C', range:[300,322] },
+  { id:'D', name:'Wing D — Floor 4',     prefix:'D', range:[400,418] }
+];
+
+const STATUSES = ['occupied','occupied','occupied','available','available','cleaning','reserved','offline'];
+
+function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+function rnd(min,max){ return Math.floor(Math.random()*(max-min+1))+min; }
+
+/* Seed RNG so data is stable across renders */
+let _seed = 42;
+function seededRand(){
+  _seed = (_seed * 1664525 + 1013904223) & 0xffffffff;
+  return ((_seed >>> 0) / 0xffffffff);
+}
+function seededPick(arr){ return arr[Math.floor(seededRand()*arr.length)]; }
+function seededRnd(min,max){ return Math.floor(seededRand()*(max-min+1))+min; }
+
+/* Build room data */
+function buildRooms(){
+  const rooms = [];
+  let id = 1;
+  for(const wing of WINGS){
+    const [start,end] = wing.range;
+    for(let n = start; n <= end; n++){
+      const service = seededPick(SERVICES);
+      const clinicArr = CLINICS_BY_SERVICE[service];
+      const clinic = seededPick(clinicArr);
+      const provider = seededPick(PROVIDERS_BY_SERVICE[service]);
+      const status = seededPick(STATUSES);
+      const util = seededRnd(20,95);
+      // hourly utilization for today (8am-5pm = 9 slots)
+      const hourly = Array.from({length:9}, ()=> seededRnd(0,100));
+      rooms.push({
+        id: id++,
+        number: String(n),
+        wing: wing.id,
+        wingName: wing.name,
+        service,
+        clinic,
+        provider,
+        status,
+        util,
+        hourly,
+        lastEvent: status === 'occupied'
+          ? `Patient in room · ${seededRnd(5,55)} min ago`
+          : status === 'cleaning'
+          ? `Cleaning in progress · ${seededRnd(2,18)} min remaining`
+          : status === 'reserved'
+          ? `Next appt in ${seededRnd(5,40)} min`
+          : status === 'offline'
+          ? 'Room offline — maintenance'
+          : `Available · last used ${seededRnd(10,60)} min ago`
+      });
+    }
+  }
+  return rooms;
+}
+
+const ALL_ROOMS = buildRooms();
+let currentView = 'grid';
+let activeModal = null;
+
+/* ═══════════════════════════════════════════════════════════════════
+   FILTER STATE
+═══════════════════════════════════════════════════════════════════ */
+function getFilters(){
+  return {
+    search:   document.getElementById('search').value.toLowerCase().trim(),
+    status:   document.getElementById('filterStatus').value,
+    service:  document.getElementById('filterService').value,
+    clinic:   document.getElementById('filterClinic').value,
+    provider: document.getElementById('filterProvider').value,
+    wing:     document.getElementById('filterWing').value
+  };
+}
+
+function applyFilters(rooms){
+  const f = getFilters();
+  return rooms.filter(r => {
+    if(f.search && ![r.number,r.clinic,r.provider,r.service,r.wingName]
+        .some(v => v.toLowerCase().includes(f.search))) return false;
+    if(f.status   && r.status   !== f.status)   return false;
+    if(f.service  && r.service  !== f.service)   return false;
+    if(f.clinic   && r.clinic   !== f.clinic)    return false;
+    if(f.provider && r.provider !== f.provider)  return false;
+    if(f.wing     && r.wing     !== f.wing)      return false;
+    return true;
+  });
+}
+
+function resetFilters(){
+  ['search','filterStatus','filterService','filterClinic','filterProvider','filterWing']
+    .forEach(id => {
+      const el = document.getElementById(id);
+      el.value = '';
+    });
+  render();
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   POPULATE FILTER DROPDOWNS
+═══════════════════════════════════════════════════════════════════ */
+function populateDropdowns(){
+  const services  = [...new Set(ALL_ROOMS.map(r=>r.service))].sort();
+  const clinics   = [...new Set(ALL_ROOMS.map(r=>r.clinic))].sort();
+  const providers = [...new Set(ALL_ROOMS.map(r=>r.provider))].sort();
+  const wings     = [...new Set(ALL_ROOMS.map(r=>r.wing))].sort();
+
+  fill('filterService', services);
+  fill('filterClinic', clinics);
+  fill('filterProvider', providers);
+  fill('filterWing', wings.map(w => ({val:w, label:'Wing '+w})));
+}
+
+function fill(id, items){
+  const sel = document.getElementById(id);
+  items.forEach(item => {
+    const opt = document.createElement('option');
+    if(typeof item === 'string'){
+      opt.value = item; opt.textContent = item;
+    } else {
+      opt.value = item.val; opt.textContent = item.label;
+    }
+    sel.appendChild(opt);
+  });
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   HELPERS
+═══════════════════════════════════════════════════════════════════ */
+function statusColor(s){
+  return {occupied:'var(--red)',available:'var(--green)',
+          cleaning:'var(--yellow)',reserved:'var(--blue)',offline:'var(--gray)'}[s]||'var(--gray)';
+}
+function utilColor(u){
+  if(u>=80) return 'var(--red)';
+  if(u>=50) return 'var(--yellow)';
+  return 'var(--green)';
+}
+function heatColor(v){
+  if(v>=80) return '#dc2626';
+  if(v>=60) return '#ea580c';
+  if(v>=40) return '#ca8a04';
+  if(v>=20) return '#16a34a';
+  return '#1e3a5f';
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   RENDER SUMMARY
+═══════════════════════════════════════════════════════════════════ */
+function renderSummary(rooms){
+  const total     = ALL_ROOMS.length;
+  const filtered  = rooms.length;
+  const occupied  = rooms.filter(r=>r.status==='occupied').length;
+  const available = rooms.filter(r=>r.status==='available').length;
+  const cleaning  = rooms.filter(r=>r.status==='cleaning').length;
+  const reserved  = rooms.filter(r=>r.status==='reserved').length;
+  const utilPct   = filtered ? Math.round(rooms.reduce((s,r)=>s+r.util,0)/filtered) : 0;
+  const clinicCnt = [...new Set(rooms.map(r=>r.clinic))].length;
+
+  document.getElementById('summaryBar').innerHTML = `
+    <div class="summary-card"><div class="summary-icon icon-total">&#9632;</div>
+      <div class="info"><div class="big">${filtered}<small style="font-size:.9rem;color:var(--text-muted)">/${total}</small></div>
+      <div class="sub">Rooms shown</div></div></div>
+    <div class="summary-card"><div class="summary-icon icon-occ">&#11044;</div>
+      <div class="info"><div class="big" style="color:var(--red)">${occupied}</div>
+      <div class="sub">Occupied</div></div></div>
+    <div class="summary-card"><div class="summary-icon icon-avail">&#11044;</div>
+      <div class="info"><div class="big" style="color:var(--green)">${available}</div>
+      <div class="sub">Available</div></div></div>
+    <div class="summary-card"><div class="summary-icon icon-clean">&#11044;</div>
+      <div class="info"><div class="big" style="color:var(--yellow)">${cleaning}</div>
+      <div class="sub">Cleaning</div></div></div>
+    <div class="summary-card"><div class="summary-icon icon-util">%</div>
+      <div class="info"><div class="big" style="color:var(--purple)">${utilPct}%</div>
+      <div class="sub">Avg Utilization</div></div></div>
+    <div class="summary-card"><div class="summary-icon icon-clinics">C</div>
+      <div class="info"><div class="big" style="color:var(--cyan)">${clinicCnt}</div>
+      <div class="sub">Active Clinics</div></div></div>
+  `;
+
+  // Util bar
+  const t = filtered || 1;
+  document.getElementById('utilTrack').innerHTML = `
+    <div class="util-segment" style="width:${occupied/t*100}%;background:var(--red)"></div>
+    <div class="util-segment" style="width:${available/t*100}%;background:var(--green)"></div>
+    <div class="util-segment" style="width:${cleaning/t*100}%;background:var(--yellow)"></div>
+    <div class="util-segment" style="width:${reserved/t*100}%;background:var(--blue)"></div>
+    <div class="util-segment" style="width:${rooms.filter(r=>r.status==='offline').length/t*100}%;background:var(--gray)"></div>
+  `;
+  document.getElementById('util-pct').textContent =
+    filtered ? `${Math.round(occupied/t*100)}% occupied` : '';
+
+  // Sidebar stats
+  document.getElementById('sidebarStats').innerHTML = `
+    <div class="stat-chip"><div class="val red">${occupied}</div><div class="lbl">Occupied</div></div>
+    <div class="stat-chip"><div class="val green">${available}</div><div class="lbl">Available</div></div>
+    <div class="stat-chip"><div class="val yellow">${cleaning}</div><div class="lbl">Cleaning</div></div>
+    <div class="stat-chip"><div class="val blue">${reserved}</div><div class="lbl">Reserved</div></div>
+  `;
+
+  document.getElementById('roomCountBadge').textContent =
+    `${filtered} of ${total} rooms`;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   RENDER CHARTS
+═══════════════════════════════════════════════════════════════════ */
+function renderCharts(rooms){
+  // Service utilization bar chart
+  const serviceMap = {};
+  rooms.forEach(r => {
+    if(!serviceMap[r.service]) serviceMap[r.service] = {total:0,count:0};
+    serviceMap[r.service].total += r.util;
+    serviceMap[r.service].count++;
+  });
+  const serviceData = Object.entries(serviceMap)
+    .map(([svc,d]) => ({svc, avg: Math.round(d.total/d.count)}))
+    .sort((a,b) => b.avg - a.avg)
+    .slice(0,10);
+
+  document.getElementById('serviceChart').innerHTML = serviceData.map(({svc,avg}) => `
+    <div class="bar-row">
+      <div class="bar-label" title="${svc}">${svc}</div>
+      <div class="bar-track"><div class="bar-fill" style="width:${avg}%;background:${utilColor(avg)}"></div></div>
+      <div class="bar-pct">${avg}%</div>
+    </div>
+  `).join('');
+
+  // Heatmap: top 8 services x 9 hours
+  const hours = ['8a','9a','10a','11a','12p','1p','2p','3p','4p'];
+  document.getElementById('heatmapHours').innerHTML =
+    hours.map(h=>`<div class="heatmap-hour">${h}</div>`).join('');
+
+  // Average hourly utilization per service
+  const topServices = serviceData.slice(0,8).map(d=>d.svc);
+  const heatmapHtml = topServices.map(svc => {
+    const svcRooms = rooms.filter(r=>r.service===svc);
+    if(!svcRooms.length) return '';
+    const avgHourly = Array.from({length:9}, (_,i) =>
+      Math.round(svcRooms.reduce((s,r)=>s+r.hourly[i],0)/svcRooms.length)
+    );
+    const shortSvc = svc.length > 14 ? svc.slice(0,13)+'…' : svc;
+    return `<div class="heatmap-row">
+      <div class="heatmap-label" title="${svc}">${shortSvc}</div>
+      ${avgHourly.map((v,i)=>`
+        <div class="heatmap-cell" style="background:${heatColor(v)}"
+          title="${svc} · ${hours[i]} · ${v}% utilization"></div>
+      `).join('')}
+    </div>`;
+  }).join('');
+  document.getElementById('heatmap').innerHTML = heatmapHtml;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   RENDER ROOMS
+═══════════════════════════════════════════════════════════════════ */
+function renderRooms(rooms){
+  const container = document.getElementById('roomsContainer');
+  if(!rooms.length){
+    container.innerHTML = `<div class="no-results">
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+      </svg>
+      <p>No rooms match the current filters.</p>
+    </div>`;
+    return;
+  }
+
+  if(currentView === 'grid'){
+    container.innerHTML = renderGridView(rooms);
+  } else {
+    container.innerHTML = renderListView(rooms);
+  }
+}
+
+function renderGridView(rooms){
+  const wingMap = {};
+  rooms.forEach(r => {
+    if(!wingMap[r.wing]) wingMap[r.wing] = [];
+    wingMap[r.wing].push(r);
+  });
+  return Object.entries(wingMap).map(([wingId, wingRooms]) => {
+    const wing = WINGS.find(w=>w.id===wingId);
+    const occupied = wingRooms.filter(r=>r.status==='occupied').length;
+    const available = wingRooms.filter(r=>r.status==='available').length;
+    return `<div class="wing-section" style="margin-bottom:20px">
+      <div class="wing-header">
+        <div class="wing-title">${wing.name}</div>
+        <div class="wing-line"></div>
+        <div class="wing-stats">${wingRooms.length} rooms &middot;
+          <span style="color:var(--red)">${occupied} occ</span> &middot;
+          <span style="color:var(--green)">${available} avail</span></div>
+      </div>
+      <div class="rooms-grid">
+        ${wingRooms.map(r => `
+          <div class="room-card ${r.status}" onclick="openModal(${r.id})">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start">
+              <div class="room-number">${r.number}</div>
+              <div class="room-status-badge status-${r.status}">
+                <div class="badge-dot dot-${r.status}"></div>${r.status}
+              </div>
+            </div>
+            <div class="room-meta">
+              <div class="room-clinic-name" title="${r.clinic}">${r.clinic}</div>
+              <div class="room-service">${r.service}</div>
+              <div class="room-provider">${r.provider}</div>
+            </div>
+            <div class="room-util-bar">
+              <div class="room-util-fill" style="width:${r.util}%;background:${utilColor(r.util)}"></div>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderListView(rooms){
+  return `
+    <div class="rooms-list">
+      <div class="room-list-header">
+        <div>Room</div><div>Clinic</div><div>Service</div><div>Provider</div><div>Status</div>
+      </div>
+      ${rooms.map(r => `
+        <div class="room-list-item" onclick="openModal(${r.id})">
+          <div style="font-weight:700">${r.number}</div>
+          <div style="font-size:.78rem">${r.clinic}</div>
+          <div style="font-size:.75rem;color:var(--text-muted)">${r.service}</div>
+          <div style="font-size:.75rem;color:var(--accent)">${r.provider}</div>
+          <div class="room-status-badge status-${r.status}">
+            <div class="badge-dot dot-${r.status}"></div>${r.status}
+          </div>
+        </div>
+      `).join('')}
+    </div>`;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   MODAL
+═══════════════════════════════════════════════════════════════════ */
+function openModal(id){
+  const r = ALL_ROOMS.find(room=>room.id===id);
+  if(!r) return;
+  const hours = ['8am','9am','10am','11am','12pm','1pm','2pm','3pm','4pm'];
+  document.getElementById('modalContent').innerHTML = `
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:4px">
+      <div class="modal-room-num">Room ${r.number}</div>
+      <div class="room-status-badge status-${r.status}" style="font-size:.8rem;padding:4px 12px">
+        <div class="badge-dot dot-${r.status}" style="width:7px;height:7px"></div>${r.status}
+      </div>
+    </div>
+    <div class="modal-wing">${r.wingName}</div>
+    <div class="modal-grid">
+      <div class="modal-field">
+        <div class="modal-field-label">Clinical Service</div>
+        <div class="modal-field-value">${r.service}</div>
+      </div>
+      <div class="modal-field">
+        <div class="modal-field-label">Provider</div>
+        <div class="modal-field-value">${r.provider}</div>
+      </div>
+      <div class="modal-field" style="grid-column:1/-1">
+        <div class="modal-field-label">Clinic Name</div>
+        <div class="modal-field-value">${r.clinic}</div>
+      </div>
+      <div class="modal-field" style="grid-column:1/-1">
+        <div class="modal-field-label">Last Event</div>
+        <div class="modal-field-value" style="font-weight:400;color:var(--text-muted)">${r.lastEvent}</div>
+      </div>
+    </div>
+    <div class="modal-util-section">
+      <div class="modal-util-label">
+        <span style="color:var(--text-muted);font-size:.75rem">Today's Utilization</span>
+        <span style="font-weight:700;color:${utilColor(r.util)}">${r.util}%</span>
+      </div>
+      <div class="modal-util-track">
+        <div class="modal-util-fill" style="width:${r.util}%;background:${utilColor(r.util)}"></div>
+      </div>
+    </div>
+    <div class="modal-timeline">
+      <h4>Hourly Occupancy (8am – 4pm)</h4>
+      <div class="timeline-slots">
+        ${r.hourly.map((v,i) => `
+          <div style="display:flex;flex-direction:column;align-items:center;flex:1;gap:3px">
+            <div class="timeline-slot" style="background:${heatColor(v)};width:100%" title="${hours[i]}: ${v}%"></div>
+            <div class="timeline-slot-label">${hours[i]}</div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `;
+  document.getElementById('modalOverlay').classList.add('open');
+}
+
+function closeModal(e){
+  if(e.target === document.getElementById('modalOverlay'))
+    document.getElementById('modalOverlay').classList.remove('open');
+}
+function closeModalBtn(){
+  document.getElementById('modalOverlay').classList.remove('open');
+}
+document.addEventListener('keydown', e => {
+  if(e.key==='Escape') document.getElementById('modalOverlay').classList.remove('open');
+});
+
+/* ═══════════════════════════════════════════════════════════════════
+   VIEW TOGGLE
+═══════════════════════════════════════════════════════════════════ */
+function setView(v){
+  currentView = v;
+  document.getElementById('viewGrid').classList.toggle('active', v==='grid');
+  document.getElementById('viewList').classList.toggle('active', v==='list');
+  const rooms = applyFilters(ALL_ROOMS);
+  renderRooms(rooms);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   MAIN RENDER
+═══════════════════════════════════════════════════════════════════ */
+function render(){
+  const rooms = applyFilters(ALL_ROOMS);
+  renderSummary(rooms);
+  renderCharts(rooms);
+  renderRooms(rooms);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   CLOCK
+═══════════════════════════════════════════════════════════════════ */
+function updateClock(){
+  const now = new Date();
+  document.getElementById('clock').textContent =
+    now.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',second:'2-digit'}) +
+    ' · ' + now.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
+}
+updateClock();
+setInterval(updateClock, 1000);
+
+/* ═══════════════════════════════════════════════════════════════════
+   INIT
+═══════════════════════════════════════════════════════════════════ */
+populateDropdowns();
+render();
+
+['search','filterStatus','filterService','filterClinic','filterProvider','filterWing']
+  .forEach(id => document.getElementById(id).addEventListener('input', render));
+</script>
+</body>
+</html>
